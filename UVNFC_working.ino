@@ -11,6 +11,7 @@
 #endif
 #include <Wire.h>
 #include <RF430CL330H_Shield.h>
+#include "Header.h"
 
 #define IRQ   (3)
 #define RESET (4)  
@@ -21,12 +22,13 @@ unsigned char NDEF_Application_Data[] = RF430_DEFAULT_DATA;
 volatile byte into_fired = 0;
 uint16_t flags = 0;
 byte ndefdata[97];
-uint16_t Tag4Length = 0;
-boolean WRITTEN = false;
+
+
+boolean WRITTEN = false;    //flag to see if a write occured 
 void setup(void) 
 {
-    //Serial.begin(115200);    
-    //Serial.println("Hello!");
+    Serial.begin(115200);    
+    Serial.println("Hello!");
    
     //reset RF430
     nfc.begin();
@@ -36,7 +38,7 @@ void setup(void)
 void loop(void) 
 {
     while(!(nfc.Read_Register(STATUS_REG) & READY)); //wait until READY bit has been set
-    //Serial.print("Fireware Version:"); Serial.println(nfc.Read_Register(VERSION_REG), HEX);    
+    Serial.print("Fireware Version:"); Serial.println(nfc.Read_Register(VERSION_REG), HEX);    
 
     //write NDEF memory with Capability Container + NDEF message
     nfc.Write_Continuous(0, NDEF_Application_Data, sizeof(NDEF_Application_Data));
@@ -50,12 +52,12 @@ void loop(void)
     //enable interrupt 1
     attachInterrupt(1, RF430_Interrupt, FALLING);
     
-    //Serial.println("Wait for read or write...");
+    Serial.println("Wait for read or write...");
     while(1)
     {    
         
         if (WRITTEN==true){
-          //showarray(ndefdata, sizeof(ndefdata));
+          showarray(ndefdata, sizeof(ndefdata));
           WRITTEN=false;
           change_write();
         }
@@ -68,21 +70,21 @@ void loop(void)
             
             //read the flag register to check if a read or write occurred
             flags = nfc.Read_Register(INT_FLAG_REG); 
-            //Serial.print("INT_FLAG_REG = 0x");Serial.println(flags, HEX);
+            Serial.print("INT_FLAG_REG = 0x");Serial.println(flags, HEX);
             
             //ACK the flags to clear
             nfc.Write_Register(INT_FLAG_REG, EOW_INT_FLAG + EOR_INT_FLAG); 
             
             if(flags & EOW_INT_FLAG)      //check if the tag was written
             {
-                //Serial.println("The tag was writted!");
-                getNDEFdata(ndefdata, Tag4Length);
+                Serial.println("The tag was writted!");
+                getNDEFdata(ndefdata);
                
                 WRITTEN=true;
             }
             else if(flags & EOR_INT_FLAG) //check if the tag was read
             {
-               // Serial.println("The tag was readed!");
+                Serial.println("The tag was readed!");
            
             }
             flags = 0;
@@ -113,7 +115,7 @@ void RF430_Interrupt()
 /**
 **  @brief get the writted NDEF data
 **/
-boolean getNDEFdata(uint8_t* ndefdata, uint16_t Tag4Length)
+boolean getNDEFdata(uint8_t* ndefdata)
 {
     byte buffer[99];
     uint16_t NDEFMessageLength = 99;
@@ -123,7 +125,7 @@ boolean getNDEFdata(uint8_t* ndefdata, uint16_t Tag4Length)
     for (uint8_t k=0; k < 99; k++)
     {
         ndefdata[k] = buffer[k];
-       // Serial.print("ndefdata[0x");Serial.print(k, HEX);Serial.print("]=");Serial.println(buffer[k], HEX); 
+        //Serial.print("ndefdata[0x");Serial.print(k, HEX);Serial.print("]=");Serial.println(buffer[k], HEX); 
     }
     
     
@@ -134,13 +136,13 @@ boolean getNDEFdata(uint8_t* ndefdata, uint16_t Tag4Length)
 
 void change_write(){
     
-     //Serial.println("into change write"); 
+     Serial.println("into change write"); 
     int q;
     for (q=0x3A; q<0x41; q++){
       ndefdata[q]= (ndefdata[q] + 16);
     }
-    //Serial.print("altered array:");
-    //showarray(ndefdata,sizeof(ndefdata));
+    Serial.print("altered array:");
+    showarray(ndefdata,sizeof(ndefdata));
     while(!(nfc.Read_Register(STATUS_REG) & READY)); //wait until READY bit has been set
        
 
@@ -156,7 +158,7 @@ void change_write(){
     //enable interrupt 1
     attachInterrupt(1, RF430_Interrupt, FALLING);
     
-    //Serial.println("end of change write");
+    Serial.println("end of change write");
   
 }
 

@@ -1,4 +1,4 @@
-/*void showarray (byte arr[], int length){
+void showarray (byte arr[], int length){
   int x;
   for (x=0; x<=length; x++){
     Serial.print(arr[x],HEX);Serial.print(",");
@@ -10,4 +10,4 @@
   }
   Serial.println("\nEND\n");
   //delay(3000);
-} */
+} 
