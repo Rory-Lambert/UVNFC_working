@@ -18,10 +18,15 @@
 
 RF430CL330H_Shield nfc(IRQ, RESET);
 
-unsigned char NDEF_Application_Data[] = RF430_DEFAULT_DATA;
+
 volatile byte into_fired = 0;
 uint16_t flags = 0;
-byte ndefdata[97];
+byte msg_from_phone[97];
+int PAY_LEN;
+byte payload[5]={0xBB,0xBB,0xBB,0xBB,0xBB};
+byte msg_setup[] = MSG_SETUP;  //31b
+byte mime_type[] = MIME_TYPE;  //27b
+byte aar[] = AAR; //33b
 
 
 boolean WRITTEN = false;    //flag to see if a write occured 
@@ -39,9 +44,22 @@ void loop(void)
 {
     while(!(nfc.Read_Register(STATUS_REG) & READY)); //wait until READY bit has been set
     Serial.print("Fireware Version:"); Serial.println(nfc.Read_Register(VERSION_REG), HEX);    
+    
+  
+  PAY_LEN=sizeof(payload);                    //find the length of the payload
+   
+  /*sets the length of the NDEF message, depending upon the payload size*/
+  byte NDEF_MSG[PAY_LEN + PRE_PAY_LEN-1];     
+  int NDEF_LEN = sizeof(NDEF_MSG);            //store its length in an int
+      
+  //Function call prepares the full NDEF message
+  NDEF_prep(NDEF_MSG, PAY_LEN);    
+
+  
+
 
     //write NDEF memory with Capability Container + NDEF message
-    nfc.Write_Continuous(0, NDEF_Application_Data, sizeof(NDEF_Application_Data));
+    nfc.Write_Continuous(0, NDEF_MSG, sizeof(NDEF_MSG));
 
     //Enable interrupts for End of Read and End of Write
     nfc.Write_Register(INT_ENABLE_REG, EOW_INT_ENABLE + EOR_INT_ENABLE);
@@ -57,7 +75,7 @@ void loop(void)
     {    
         
         if (WRITTEN==true){
-          showarray(ndefdata, sizeof(ndefdata));
+          showarray(msg_from_phone, sizeof(msg_from_phone));
           WRITTEN=false;
           change_write();
         }
@@ -78,7 +96,7 @@ void loop(void)
             if(flags & EOW_INT_FLAG)      //check if the tag was written
             {
                 Serial.println("The tag was writted!");
-                getNDEFdata(ndefdata);
+                getNDEFdata(msg_from_phone);
                
                 WRITTEN=true;
             }
@@ -115,7 +133,7 @@ void RF430_Interrupt()
 /**
 **  @brief get the writted NDEF data
 **/
-boolean getNDEFdata(uint8_t* ndefdata)
+boolean getNDEFdata(uint8_t* msg_from_phone)
 {
     byte buffer[99];
     uint16_t NDEFMessageLength = 99;
@@ -124,8 +142,8 @@ boolean getNDEFdata(uint8_t* ndefdata)
     nfc.Read_Continuous(0, buffer, 99);   
     for (uint8_t k=0; k < 99; k++)
     {
-        ndefdata[k] = buffer[k];
-        //Serial.print("ndefdata[0x");Serial.print(k, HEX);Serial.print("]=");Serial.println(buffer[k], HEX); 
+        msg_from_phone[k] = buffer[k];
+        //Serial.print("msg_from_phone[0x");Serial.print(k, HEX);Serial.print("]=");Serial.println(buffer[k], HEX); 
     }
     
     
@@ -139,15 +157,15 @@ void change_write(){
      Serial.println("into change write"); 
     int q;
     for (q=0x3A; q<0x41; q++){
-      ndefdata[q]= (ndefdata[q] + 16);
+      msg_from_phone[q]= (msg_from_phone[q] + 16);
     }
     Serial.print("altered array:");
-    showarray(ndefdata,sizeof(ndefdata));
+    showarray(msg_from_phone,sizeof(msg_from_phone));
     while(!(nfc.Read_Register(STATUS_REG) & READY)); //wait until READY bit has been set
        
 
     //write NDEF memory with Capability Container + NDEF message
-    nfc.Write_Continuous(0, ndefdata, sizeof(ndefdata));
+    nfc.Write_Continuous(0, msg_from_phone, sizeof(msg_from_phone));
 
     //Enable interrupts for End of Read and End of Write
     nfc.Write_Register(INT_ENABLE_REG, EOW_INT_ENABLE + EOR_INT_ENABLE);
