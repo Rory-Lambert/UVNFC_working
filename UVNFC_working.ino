@@ -2,7 +2,8 @@
 /*********************************************************
 ** Working version of the arduino code, can read and write
 ** to/from NFC. Everything else to be implemented.
-** Rory Lambert + Jamie Logan, based upon code by Ten Wong
+** Rory Lambert + Jamie Logan, based upon code by Ten Wong7
+** Now includes mime type comparison and Timer Interrupts
 ***********************************************************/
 #if ARDUINO >= 100
  #include "Arduino.h"
@@ -121,6 +122,7 @@ void loop(void)
         if (timer_f==1){
           timer_f=0;
           NFCount++;
+          write_different();
           
           Serial.print("\nNFCount:");Serial.println(NFCount);
           Serial.print("\nInterval:");Serial.println(Interval);
@@ -236,8 +238,25 @@ void change_write(){
       /*the header is getting re-written, so we need to reset the interrupt count
       **to be in time with the timestamp*/
       count=0; 
+      
+      
+      /*get the data we are interested in*/
+      for (q=0x3A; q<0x41; q++){
+        payload[q-0x3A]=msg_from_phone[q];
+        msg_from_phone[q]= (msg_from_phone[q] + 16);
+        
+      }
+      
+      
+      Serial.println("pulled payload:");
+      showarray(payload, 159);
+      
+      for (q=80; q<90; q++){
+        payload[q]=0xCC;
+      }
+      
     }
-    
+   
     Serial.println(Device_ID);
     Serial.println(Year);
     Serial.println(Day_MSB);
@@ -246,18 +265,14 @@ void change_write(){
     Serial.println(Time_Min);
     Serial.println(Interval);
     
+    byte NDEF_MSG[PAY_LEN + PRE_PAY_LEN];
+    NDEF_prep(NDEF_MSG, PAY_LEN); 
     
-      /*get the data we are interested in*/
-      for (q=0x3A; q<0x41; q++){
-        msg_from_phone[q]= (msg_from_phone[q] + 16);
-      }
-    Serial.print("altered array:");
-    showarray(msg_from_phone,sizeof(msg_from_phone));
     while(!(nfc.Read_Register(STATUS_REG) & READY)); //wait until READY bit has been set
        
 
     //write NDEF memory with Capability Container + NDEF message
-    nfc.Write_Continuous(0, msg_from_phone, sizeof(msg_from_phone));
+    nfc.Write_Continuous(0, NDEF_MSG, sizeof(NDEF_MSG));
 
     //Enable interrupts for End of Read and End of Write
     nfc.Write_Register(INT_ENABLE_REG, EOW_INT_ENABLE + EOR_INT_ENABLE);
@@ -272,4 +287,31 @@ void change_write(){
   
 }
 
+void write_different(){
+    Serial.println("into write different");
+    int t;
+    for (t=90; t<100; t++){
+      payload[t]=NFCount;
+    }
+  
+    byte NDEF_MSG[PAY_LEN + PRE_PAY_LEN];
+    NDEF_prep(NDEF_MSG, PAY_LEN); 
+    
+    while(!(nfc.Read_Register(STATUS_REG) & READY)); //wait until READY bit has been set
+       
 
+    //write NDEF memory with Capability Container + NDEF message
+    nfc.Write_Continuous(0, NDEF_MSG, sizeof(NDEF_MSG));
+
+    //Enable interrupts for End of Read and End of Write
+    nfc.Write_Register(INT_ENABLE_REG, EOW_INT_ENABLE + EOR_INT_ENABLE);
+
+    //Configure INTO pin for active low and enable RF
+    nfc.Write_Register(CONTROL_REG, INT_ENABLE + INTO_DRIVE + RF_ENABLE );
+
+    //enable interrupt 1
+    attachInterrupt(1, RF430_Interrupt, FALLING);
+    
+    Serial.println("end write different");
+  
+}
