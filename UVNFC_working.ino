@@ -4,6 +4,8 @@
 ** to/from NFC. Everything else to be implemented.
 ** Rory Lambert + Jamie Logan, based upon code by Ten Wong7
 ** Now includes mime type comparison and Timer Interrupts
+** Check storedcount works, find out what the random bytes 
+** mean, and implement light sensor
 ***********************************************************/
 #if ARDUINO >= 100
  #include "Arduino.h"
@@ -28,11 +30,17 @@ int timer_f;
 int count=0;
 /*164 seems to be the max length it will work.
 **the BB's are just to show a default message*/
-byte payload[160]={0xBB}; 
+byte payload[160]={0xBB, 0xBB, 0xBB, 0xBB, 0xBB}; 
 byte msg_setup[] = MSG_SETUP;  //31b
 byte mime_type[] = MIME_TYPE;  //27b
 byte aar[] = AAR; //33b
 int NFCount;
+int uvRaw = 0;
+int ambRaw = 0;
+byte uvEE = 0;
+byte ambEE = 0;
+int storedcount = 0;
+//ee_address lives in the header
 
 boolean WRITTEN = false;    //flag to see if a write occured 
 void setup(void) 
@@ -115,12 +123,16 @@ void loop(void)
           //showarray(msg_from_phone, sizeof(msg_from_phone));
           WRITTEN=false;
           change_write();
+          write_different();
         }
         
         /*Routine for if a timer interrupt occured*/
         if (timer_f==1){
           timer_f=0;
           NFCount++;
+          StoreData(ee_address, NFCount);
+          StoreData(ee_address, NFCount);
+          StoreData(ee_address, NFCount);
           write_different();
           
           //Serial.print("\nNFCount:");//Serial.println(NFCount);
@@ -246,14 +258,18 @@ void change_write(){
       EepromWrite(0x04, Time_Hr);
       EepromWrite(0x05, Time_Min);
       EepromWrite(0x06, Interval);
-      EepromWrite(0x07, Device_ID);
+      EepromWrite(0x07, 0);
+      EepromWrite(0x08, 0);
+      EepromWrite(0x09, 0);
+      
+     
       
       
  
       
     }
    
-    //for testing, puts the things from EEPROM into bytes 20+ of the payload
+    /*for testing, puts the things from EEPROM into bytes 20+ of the payload
     for (int s = 20; s<27; s++){
       payload[s]=EepromRead(s-20);
     }
@@ -277,7 +293,7 @@ void change_write(){
     attachInterrupt(1, RF430_Interrupt, FALLING);
     
     //Serial.println("end of change write");
-  
+    */
 }
 
 
@@ -286,8 +302,11 @@ void write_different(){
     //Serial.println("into write different");
     int t;
     for (t=90; t<100; t++){
-      payload[t]=NFCount;
+      payload[t]=NFCount+16;
     }
+    
+    ReadAllData();
+    
   
     byte NDEF_MSG[PAY_LEN + PRE_PAY_LEN];
     NDEF_prep(NDEF_MSG, PAY_LEN); 
