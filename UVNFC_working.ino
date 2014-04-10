@@ -158,27 +158,53 @@ void getNDEFdata(uint8_t* msg_from_phone)
 
 void change_write(){
     
-     Serial.println("into change write"); 
+    Serial.println("into change write"); 
     int q;
     byte mime_Rx[27];
     boolean corr_app;
     
+    /*Get the mime type from the received message*/
     for (q=31; q<58; q++){
       mime_Rx[q-31]=msg_from_phone[q];
     }
     
+    /*Call the message comparison function */
     corr_app=array_cmp(mime_Rx, mime_type, 26);
+    
+    /****Serial stuff, for testing****/
     Serial.print("MIME RX:\n");
     showASCII(mime_Rx, 26);
     
     Serial.print("\nMIME GLOBAL:\n");
     showASCII(mime_type, 26);
     Serial.print(corr_app);Serial.println("");
+    /**************************************/
     
     
-    for (q=0x3A; q<0x41; q++){
-      msg_from_phone[q]= (msg_from_phone[q] + 16);
+    if (corr_app == true){
+      Serial.println("correct app");
+      Device_ID =  msg_from_phone[0x3A]; 
+      Year      =  msg_from_phone[0x3B];
+      Day_MSB   =  msg_from_phone[0x3C];
+      Day_LSB   =  msg_from_phone[0x3D];
+      Time_Hr   =  msg_from_phone[0x3E];       
+      Time_Min  =  msg_from_phone[0x3F];        
+      Interval  =  msg_from_phone[0x40];
     }
+    
+    Serial.println(Device_ID);
+    Serial.println(Year);
+    Serial.println(Day_MSB);
+    Serial.println(Day_LSB);
+    Serial.println(Time_Hr);
+    Serial.println(Time_Min);
+    Serial.println(Interval);
+    
+    
+      /*get the data we are interested in*/
+      for (q=0x3A; q<0x41; q++){
+        msg_from_phone[q]= (msg_from_phone[q] + 16);
+      }
     Serial.print("altered array:");
     showarray(msg_from_phone,sizeof(msg_from_phone));
     while(!(nfc.Read_Register(STATUS_REG) & READY)); //wait until READY bit has been set
