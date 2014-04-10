@@ -33,13 +33,27 @@ void NDEF_prep (byte arr[], int Nlen){
     //showarray(arr, NDEF_LEN); 
     delay(1000);
     
-
-  
-    arr[LEN_BYTE_PACK] = (PACK_LEN + PAY_LEN);
+    int pp_len = PACK_LEN+PAY_LEN;
+    if ((pp_len)<255){
+      arr[LEN_BYTE_PACK]= (pp_len);
+      arr[LEN_BYTE_PACK_MSB] = 0;
+    }
+    if ((pp_len)>255){
+      arr[LEN_BYTE_PACK] = 255;
+      pp_len-=255;
+      pp_len<<8;
+      arr[LEN_BYTE_PACK_MSB];
+    }
+    
+      
+    
+    //arr[LEN_BYTE_PACK] = (PACK_LEN + PAY_LEN);
     arr[LEN_BYTE_PAY] = PAY_LEN;
+    
 ///_MH    Serial.print("Pack length (after setup) in bytes (loc:LEN_BYTE_PACK): "); Serial.println(arr[LEN_BYTE_PACK]);
 ///_MH    Serial.print("Payload length in bytes(loc:LEN_BYTE_PAY): "); Serial.println(arr[LEN_BYTE_PAY]);
     showarray(arr, p);
+    //showASCII(arr, p);
 ///_MH    showASCII(arr, p);
 }
   

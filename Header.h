@@ -151,6 +151,7 @@ const static int PRE_PAY_LEN = 91;
 const static int PACK_LEN = 63;
 
 //define the locations of the two bytes dictating message length
+const static int LEN_BYTE_PACK_MSB = 0x1A;
 const static int LEN_BYTE_PACK = 0x1B;   //full NDEF (after setup)
 const static int LEN_BYTE_PAY = 0x1E;    //payload length
 

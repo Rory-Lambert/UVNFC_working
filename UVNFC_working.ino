@@ -23,7 +23,10 @@ volatile byte into_fired = 0;
 uint16_t flags = 0;
 byte msg_from_phone[97];
 int PAY_LEN;
-byte payload[5]={0xBB,0xBB,0xBB,0xBB,0xBB};
+
+/*164 seems to be the max length it will work.
+**the BB's are just to show a default message*/
+byte payload[164]={0xBB,0xBB,0xBB,0xBB,0xBB}; 
 byte msg_setup[] = MSG_SETUP;  //31b
 byte mime_type[] = MIME_TYPE;  //27b
 byte aar[] = AAR; //33b
@@ -49,28 +52,29 @@ void loop(void)
   PAY_LEN=sizeof(payload);                    //find the length of the payload
    
   /*sets the length of the NDEF message, depending upon the payload size*/
-  byte NDEF_MSG[PAY_LEN + PRE_PAY_LEN-1];     
+  byte NDEF_MSG[PAY_LEN + PRE_PAY_LEN];       //***removed -1!, appeared to fix 
   int NDEF_LEN = sizeof(NDEF_MSG);            //store its length in an int
       
   //Function call prepares the full NDEF message
   NDEF_prep(NDEF_MSG, PAY_LEN);    
-
-  
+    
+    delay(500);
+    Serial.println("out of NDEFPREP");
 
 
     //write NDEF memory with Capability Container + NDEF message
     nfc.Write_Continuous(0, NDEF_MSG, sizeof(NDEF_MSG));
-
+    Serial.println("Writecont");
     //Enable interrupts for End of Read and End of Write
     nfc.Write_Register(INT_ENABLE_REG, EOW_INT_ENABLE + EOR_INT_ENABLE);
-
+  Serial.println("writeREG");
     //Configure INTO pin for active low and enable RF
     nfc.Write_Register(CONTROL_REG, INT_ENABLE + INTO_DRIVE + RF_ENABLE );
-
+    Serial.println("enableRF");
     //enable interrupt 1
     attachInterrupt(1, RF430_Interrupt, FALLING);
     
-    Serial.println("Wait for read or write...");
+    Serial.println("\nWait for read or write...");
     while(1)
     {    
         
@@ -133,7 +137,7 @@ void RF430_Interrupt()
 /**
 **  @brief get the writted NDEF data
 **/
-boolean getNDEFdata(uint8_t* msg_from_phone)
+void getNDEFdata(uint8_t* msg_from_phone)
 {
     byte buffer[99];
     uint16_t NDEFMessageLength = 99;
@@ -148,7 +152,7 @@ boolean getNDEFdata(uint8_t* msg_from_phone)
     
     
     
-    return true;
+    
 }
 
 
@@ -156,6 +160,22 @@ void change_write(){
     
      Serial.println("into change write"); 
     int q;
+    byte mime_Rx[27];
+    boolean corr_app;
+    
+    for (q=31; q<58; q++){
+      mime_Rx[q-31]=msg_from_phone[q];
+    }
+    
+    corr_app=array_cmp(mime_Rx, mime_type, 26);
+    Serial.print("MIME RX:\n");
+    showASCII(mime_Rx, 26);
+    
+    Serial.print("\nMIME GLOBAL:\n");
+    showASCII(mime_type, 26);
+    Serial.print(corr_app);Serial.println("");
+    
+    
     for (q=0x3A; q<0x41; q++){
       msg_from_phone[q]= (msg_from_phone[q] + 16);
     }
