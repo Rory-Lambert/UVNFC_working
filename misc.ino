@@ -1,4 +1,4 @@
-void showarray (byte arr[], int length){
+/*void showarray (byte arr[], int length){
   int x;
   for (x=0; x<=length; x++){
     Serial.print(arr[x],HEX);Serial.print(",");
@@ -26,7 +26,7 @@ void showASCII (byte arr[], int length){
     Serial.print(z);
   }
 }
-
+*/
 
 //function which checks if 2 arrays are equal to each other
 boolean array_cmp(byte a[], byte b[], int len){

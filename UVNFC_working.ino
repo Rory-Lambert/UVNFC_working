@@ -28,7 +28,7 @@ int timer_f;
 int count=0;
 /*164 seems to be the max length it will work.
 **the BB's are just to show a default message*/
-byte payload[160]={0xBB,0xBB,0xBB,0xBB,0xBB}; 
+byte payload[160]={0xBB}; 
 byte msg_setup[] = MSG_SETUP;  //31b
 byte mime_type[] = MIME_TYPE;  //27b
 byte aar[] = AAR; //33b
@@ -37,8 +37,7 @@ int NFCount;
 boolean WRITTEN = false;    //flag to see if a write occured 
 void setup(void) 
 {
-    Serial.begin(115200);    
-    Serial.println("Hello!");
+
    
     //reset RF430
     nfc.begin();
@@ -80,7 +79,7 @@ ISR(TIMER1_COMPA_vect){
 void loop(void) 
 {
     while(!(nfc.Read_Register(STATUS_REG) & READY)); //wait until READY bit has been set
-    Serial.print("Fireware Version:"); Serial.println(nfc.Read_Register(VERSION_REG), HEX);    
+    
     
   
   PAY_LEN=sizeof(payload);                    //find the length of the payload
@@ -93,27 +92,27 @@ void loop(void)
   NDEF_prep(NDEF_MSG, PAY_LEN);    
     
     delay(500);
-    Serial.println("out of NDEFPREP");
+    ////Serial////Serial.println("out of NDEFPREP");
 
 
     //write NDEF memory with Capability Container + NDEF message
     nfc.Write_Continuous(0, NDEF_MSG, sizeof(NDEF_MSG));
-    Serial.println("Writecont");
+    ////Serial.println("Writecont");
     //Enable interrupts for End of Read and End of Write
     nfc.Write_Register(INT_ENABLE_REG, EOW_INT_ENABLE + EOR_INT_ENABLE);
-  Serial.println("writeREG");
+  ////Serial.println("writeREG");
     //Configure INTO pin for active low and enable RF
     nfc.Write_Register(CONTROL_REG, INT_ENABLE + INTO_DRIVE + RF_ENABLE );
-    Serial.println("enableRF");
+    ////Serial.println("enableRF");
     //enable interrupt 1
     attachInterrupt(1, RF430_Interrupt, FALLING);
     
-    Serial.println("\nWait for read or write...");
+    ////Serial.println("\nWait for read or write...");
     while(1)
     {    
         /*Routine for if a write occured*/
         if (WRITTEN==true){
-          showarray(msg_from_phone, sizeof(msg_from_phone));
+          //showarray(msg_from_phone, sizeof(msg_from_phone));
           WRITTEN=false;
           change_write();
         }
@@ -124,8 +123,8 @@ void loop(void)
           NFCount++;
           write_different();
           
-          Serial.print("\nNFCount:");Serial.println(NFCount);
-          Serial.print("\nInterval:");Serial.println(Interval);
+          //Serial.print("\nNFCount:");//Serial.println(NFCount);
+          //Serial.print("\nInterval:");//Serial.println(Interval);
   
         }  
         
@@ -137,21 +136,21 @@ void loop(void)
             
             //read the flag register to check if a read or write occurred
             flags = nfc.Read_Register(INT_FLAG_REG); 
-            Serial.print("INT_FLAG_REG = 0x");Serial.println(flags, HEX);
+            //Serial.print("INT_FLAG_REG = 0x");//Serial.println(flags, HEX);
             
             //ACK the flags to clear
             nfc.Write_Register(INT_FLAG_REG, EOW_INT_FLAG + EOR_INT_FLAG); 
             
             if(flags & EOW_INT_FLAG)      //check if the tag was written
             {
-                Serial.println("The tag was writted!");
+                //Serial.println("The tag was writted!");
                 getNDEFdata(msg_from_phone);
                
                 WRITTEN=true;
             }
             else if(flags & EOR_INT_FLAG) //check if the tag was read
             {
-                Serial.println("The tag was readed!");
+                //Serial.println("The tag was readed!");
            
             }
             flags = 0;
@@ -192,7 +191,7 @@ void getNDEFdata(uint8_t* msg_from_phone)
     for (uint8_t k=0; k < 99; k++)
     {
         msg_from_phone[k] = buffer[k];
-        //Serial.print("msg_from_phone[0x");Serial.print(k, HEX);Serial.print("]=");Serial.println(buffer[k], HEX); 
+        ////Serial.print("msg_from_phone[0x");//Serial.print(k, HEX);//Serial.print("]=");//Serial.println(buffer[k], HEX); 
     }
     
     
@@ -203,7 +202,7 @@ void getNDEFdata(uint8_t* msg_from_phone)
 
 void change_write(){
     
-    Serial.println("into change write"); 
+    //Serial.println("into change write"); 
     int q;
     byte mime_Rx[27];
     boolean corr_app;
@@ -216,18 +215,18 @@ void change_write(){
     /*Call the message comparison function */
     corr_app=array_cmp(mime_Rx, mime_type, 26);
     
-    /****Serial stuff, for testing****/
-    Serial.print("MIME RX:\n");
-    showASCII(mime_Rx, 26);
+    /****///Serial stuff, for testing****/
+    //Serial.print("MIME RX:\n");
+    //showASCII(mime_Rx, 26);
     
-    Serial.print("\nMIME GLOBAL:\n");
-    showASCII(mime_type, 26);
-    Serial.print(corr_app);Serial.println("");
+    //Serial.print("\nMIME GLOBAL:\n");
+    //showASCII(mime_type, 26);
+    //Serial.print(corr_app);//Serial.println("");
     /**************************************/
     
     
     if (corr_app == true){
-      Serial.println("correct app");
+      //Serial.println("correct app");
       Device_ID =  msg_from_phone[0x3A]; 
       Year      =  msg_from_phone[0x3B];
       Day_MSB   =  msg_from_phone[0x3C];
@@ -239,31 +238,25 @@ void change_write(){
       **to be in time with the timestamp*/
       count=0; 
       
+      //Put this data in EEPROM
+      EepromWrite(0x00, Device_ID);
+      EepromWrite(0x01, Year);
+      EepromWrite(0x02, Day_MSB);
+      EepromWrite(0x03, Day_LSB);
+      EepromWrite(0x04, Time_Hr);
+      EepromWrite(0x05, Time_Min);
+      EepromWrite(0x06, Interval);
+      EepromWrite(0x07, Device_ID);
       
-      /*get the data we are interested in*/
-      for (q=0x3A; q<0x41; q++){
-        payload[q-0x3A]=msg_from_phone[q];
-        msg_from_phone[q]= (msg_from_phone[q] + 16);
-        
-      }
       
-      
-      Serial.println("pulled payload:");
-      showarray(payload, 159);
-      
-      for (q=80; q<90; q++){
-        payload[q]=0xCC;
-      }
+ 
       
     }
    
-    Serial.println(Device_ID);
-    Serial.println(Year);
-    Serial.println(Day_MSB);
-    Serial.println(Day_LSB);
-    Serial.println(Time_Hr);
-    Serial.println(Time_Min);
-    Serial.println(Interval);
+    //for testing, puts the things from EEPROM into bytes 20+ of the payload
+    for (int s = 20; s<27; s++){
+      payload[s]=EepromRead(s-20);
+    }
     
     byte NDEF_MSG[PAY_LEN + PRE_PAY_LEN];
     NDEF_prep(NDEF_MSG, PAY_LEN); 
@@ -283,12 +276,14 @@ void change_write(){
     //enable interrupt 1
     attachInterrupt(1, RF430_Interrupt, FALLING);
     
-    Serial.println("end of change write");
+    //Serial.println("end of change write");
   
 }
 
+
+/*Writes a new NDEF message after the timer interrupt and puts it on the RF430*/
 void write_different(){
-    Serial.println("into write different");
+    //Serial.println("into write different");
     int t;
     for (t=90; t<100; t++){
       payload[t]=NFCount;
@@ -312,6 +307,6 @@ void write_different(){
     //enable interrupt 1
     attachInterrupt(1, RF430_Interrupt, FALLING);
     
-    Serial.println("end write different");
+    //Serial.println("end write different");
   
 }

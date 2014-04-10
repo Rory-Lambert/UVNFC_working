@@ -52,7 +52,7 @@ void NDEF_prep (byte arr[], int Nlen){
     
 ///_MH    Serial.print("Pack length (after setup) in bytes (loc:LEN_BYTE_PACK): "); Serial.println(arr[LEN_BYTE_PACK]);
 ///_MH    Serial.print("Payload length in bytes(loc:LEN_BYTE_PAY): "); Serial.println(arr[LEN_BYTE_PAY]);
-    showarray(arr, p);
+    //showarray(arr, p);
     //showASCII(arr, p);
 ///_MH    showASCII(arr, p);
 }
