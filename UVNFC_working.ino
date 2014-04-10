@@ -23,14 +23,15 @@ volatile byte into_fired = 0;
 uint16_t flags = 0;
 byte msg_from_phone[97];
 int PAY_LEN;
-
+int timer_f;
+int count=0;
 /*164 seems to be the max length it will work.
 **the BB's are just to show a default message*/
-byte payload[164]={0xBB,0xBB,0xBB,0xBB,0xBB}; 
+byte payload[160]={0xBB,0xBB,0xBB,0xBB,0xBB}; 
 byte msg_setup[] = MSG_SETUP;  //31b
 byte mime_type[] = MIME_TYPE;  //27b
 byte aar[] = AAR; //33b
-
+int NFCount;
 
 boolean WRITTEN = false;    //flag to see if a write occured 
 void setup(void) 
@@ -41,7 +42,39 @@ void setup(void)
     //reset RF430
     nfc.begin();
     delay(1000);
+    
+    
+        /*********TIMER INTERRUPTS*********/
+    
+    cli();                                   //stop interrupts         
+  
+  
+    TCCR1A = 0;                              //set entire TCCR1A register to 0
+    TCCR1B = 0;                              //same for TCCR1B
+    TCNT1  = 0;                              //initialize counter value to 0
+    OCR1A = 46874;                           // = (8*10^6) / (1024*(1/6s) - 1 (must be <65536)
+    TCCR1B |= (1 << WGM12);                  //turn on CTC mode
+    TCCR1B |= (1 << CS12) | (1 << CS10);     //Set CS10 and CS12 bits for 1024 prescaler
+    TIMSK1 |= (1 << OCIE1A);                 //enable timer compare interrupt
+    sei();                                   //allow interrupts
+  
+    
 }
+
+ISR(TIMER1_COMPA_vect){
+    
+    count++;
+            
+     if (count == (Interval*10)){
+         count = 0;
+         
+         if(timer_f == 0){          //if the flag isnt set...
+             timer_f = 1;            //...set it.
+         }
+     }
+}
+
+
 
 void loop(void) 
 {
@@ -77,12 +110,22 @@ void loop(void)
     Serial.println("\nWait for read or write...");
     while(1)
     {    
-        
+        /*Routine for if a write occured*/
         if (WRITTEN==true){
           showarray(msg_from_phone, sizeof(msg_from_phone));
           WRITTEN=false;
           change_write();
         }
+        
+        /*Routine for if a timer interrupt occured*/
+        if (timer_f==1){
+          timer_f=0;
+          NFCount++;
+          
+          Serial.print("\nNFCount:");Serial.println(NFCount);
+          Serial.print("\nInterval:");Serial.println(Interval);
+  
+        }  
         
         if(into_fired)
         {
@@ -190,6 +233,9 @@ void change_write(){
       Time_Hr   =  msg_from_phone[0x3E];       
       Time_Min  =  msg_from_phone[0x3F];        
       Interval  =  msg_from_phone[0x40];
+      /*the header is getting re-written, so we need to reset the interrupt count
+      **to be in time with the timestamp*/
+      count=0; 
     }
     
     Serial.println(Device_ID);
