@@ -25,12 +25,13 @@ RF430CL330H_Shield nfc(IRQ, RESET);
 volatile byte into_fired = 0;
 uint16_t flags = 0;
 byte msg_from_phone[97];
-int PAY_LEN;
+
 int timer_f;
 int count=0;
 /*164 seems to be the max length it will work.
 **the BB's are just to show a default message*/
 byte payload[160]={0xBB, 0xBB, 0xBB, 0xBB, 0xBB}; 
+int PAY_LEN;
 byte msg_setup[] = MSG_SETUP;  //31b
 byte mime_type[] = MIME_TYPE;  //27b
 byte aar[] = AAR; //33b
@@ -43,16 +44,16 @@ int storedcount = 0;
 //ee_address lives in the header
 
 boolean WRITTEN = false;    //flag to see if a write occured 
-void setup(void) 
-{
+
+
+void setup(void){
 
    
-    //reset RF430
-    nfc.begin();
+    nfc.begin();                          //reset the RF430
     delay(1000);
     
     
-        /*********TIMER INTERRUPTS*********/
+    /*********TIMER INTERRUPTS*********/
     
     cli();                                   //stop interrupts         
   
@@ -69,6 +70,7 @@ void setup(void)
     
 }
 
+/*TImer Interrupt Subroutine*/
 ISR(TIMER1_COMPA_vect){
     
     count++;
@@ -83,37 +85,39 @@ ISR(TIMER1_COMPA_vect){
 }
 
 
+/*Main loop*/
 
-void loop(void) 
-{
-    while(!(nfc.Read_Register(STATUS_REG) & READY)); //wait until READY bit has been set
+void loop(void) {
+  
+  
+  while(!(nfc.Read_Register(STATUS_REG) & READY)); //wait until READY bit has been set
     
     
   
   PAY_LEN=sizeof(payload);                    //find the length of the payload
-   
+  
   /*sets the length of the NDEF message, depending upon the payload size*/
   byte NDEF_MSG[PAY_LEN + PRE_PAY_LEN];       //***removed -1!, appeared to fix 
   int NDEF_LEN = sizeof(NDEF_MSG);            //store its length in an int
       
   //Function call prepares the full NDEF message
   NDEF_prep(NDEF_MSG, PAY_LEN);    
-    
-    delay(500);
+   
+  delay(500);
     ////Serial////Serial.println("out of NDEFPREP");
 
 
     //write NDEF memory with Capability Container + NDEF message
-    nfc.Write_Continuous(0, NDEF_MSG, sizeof(NDEF_MSG));
+  nfc.Write_Continuous(0, NDEF_MSG, sizeof(NDEF_MSG));
     ////Serial.println("Writecont");
     //Enable interrupts for End of Read and End of Write
-    nfc.Write_Register(INT_ENABLE_REG, EOW_INT_ENABLE + EOR_INT_ENABLE);
+  nfc.Write_Register(INT_ENABLE_REG, EOW_INT_ENABLE + EOR_INT_ENABLE);
   ////Serial.println("writeREG");
     //Configure INTO pin for active low and enable RF
-    nfc.Write_Register(CONTROL_REG, INT_ENABLE + INTO_DRIVE + RF_ENABLE );
+  nfc.Write_Register(CONTROL_REG, INT_ENABLE + INTO_DRIVE + RF_ENABLE );
     ////Serial.println("enableRF");
     //enable interrupt 1
-    attachInterrupt(1, RF430_Interrupt, FALLING);
+  attachInterrupt(1, RF430_Interrupt, FALLING);
     
     ////Serial.println("\nWait for read or write...");
     while(1)
@@ -130,8 +134,8 @@ void loop(void)
         if (timer_f==1){
           timer_f=0;
           NFCount++;
-          StoreData(ee_address, NFCount);
-          StoreData(ee_address, NFCount);
+          StoreData(ee_address, NFCount*2);
+          StoreData(ee_address, NFCount*2);
           
           write_different();
           
@@ -227,15 +231,7 @@ void change_write(){
     /*Call the message comparison function */
     corr_app=array_cmp(mime_Rx, mime_type, 26);
     
-    /****///Serial stuff, for testing****/
-    //Serial.print("MIME RX:\n");
-    //showASCII(mime_Rx, 26);
-    
-    //Serial.print("\nMIME GLOBAL:\n");
-    //showASCII(mime_type, 26);
-    //Serial.print(corr_app);//Serial.println("");
-    /**************************************/
-    
+
     
     if (corr_app == true){
       //Serial.println("correct app");
@@ -245,7 +241,7 @@ void change_write(){
       Day_LSB   =  msg_from_phone[0x3D];
       Time_Hr   =  msg_from_phone[0x3E];       
       Time_Min  =  msg_from_phone[0x3F];        
-      Interval  =  msg_from_phone[0x40];
+      Interval  =  msg_from_phone[0x40]; 
       /*the header is getting re-written, so we need to reset the interrupt count
       **to be in time with the timestamp*/
       count=0; 
@@ -257,12 +253,14 @@ void change_write(){
       EepromWrite(0x03, Day_LSB);
       EepromWrite(0x04, Time_Hr);
       EepromWrite(0x05, Time_Min);
-      EepromWrite(0x06, Interval);
+      EepromWrite(0x06, Interval);  
       EepromWrite(0x07, 0);
       EepromWrite(0x08, 0);
       EepromWrite(0x09, 0);
       
-     
+      cli();
+      delay(500);
+      sei();
       
       
  
@@ -299,13 +297,12 @@ void change_write(){
 
 /*Writes a new NDEF message after the timer interrupt and puts it on the RF430*/
 void write_different(){
-    //Serial.println("into write different");
-    int t;
-    for (t=90; t<100; t++){
-      payload[t]=NFCount+16;
-    }
     
-    ReadAllData();
+    
+    for (int t = 0; t<160; t++){
+      payload[t]=EepromRead(t);
+    }
+    //ReadAllData();
     
   
     byte NDEF_MSG[PAY_LEN + PRE_PAY_LEN];
