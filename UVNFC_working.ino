@@ -51,7 +51,7 @@ void setup(void){
    
     nfc.begin();                          //reset the RF430
     delay(1000);
-    
+    Interval=EepromRead(0x06);
     
     /*********TIMER INTERRUPTS*********/
     
