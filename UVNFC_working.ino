@@ -15,6 +15,7 @@
 #include <Wire.h>
 #include <RF430CL330H_Shield.h>
 #include "Header.h"
+#include <avr/wdt.h>
 
 #define IRQ   (3)
 #define RESET (4)  
@@ -48,7 +49,12 @@ boolean WRITTEN = false;    //flag to see if a write occured
 
 void setup(void){
 
-   
+    wdt_disable();
+    MCUSR&= ~_BV(WDRF);
+    WDTCSR|= _BV(WDCE) | _BV(WDE);
+    WDTCSR = 0;
+    
+    
     nfc.begin();                          //reset the RF430
     delay(1000);
     Interval=EepromRead(0x06);
@@ -128,14 +134,17 @@ void loop(void) {
           WRITTEN=false;
           change_write();
           write_different();
+          software_Reboot();
+          
         }
         
         /*Routine for if a timer interrupt occured*/
         if (timer_f==1){
           timer_f=0;
           NFCount++;
-          StoreData(ee_address, NFCount*2);
-          StoreData(ee_address, NFCount*2);
+          ambRaw=analogRead(A1);
+          StoreData(ee_address, ambRaw);
+          StoreData(ee_address, NFCount);
           
           write_different();
           
@@ -258,9 +267,8 @@ void change_write(){
       EepromWrite(0x08, 0);
       EepromWrite(0x09, 0);
       
-      cli();
-      delay(500);
-      sei();
+      
+      
       
       
  
@@ -324,5 +332,12 @@ void write_different(){
     attachInterrupt(1, RF430_Interrupt, FALLING);
     
     //Serial.println("end write different");
+  
+}
+
+void software_Reboot(){
+  
+  wdt_enable(WDTO_1S);
+  while(1);
   
 }
