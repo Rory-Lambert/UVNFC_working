@@ -132,7 +132,7 @@ void loop(void)
           NFCount++;
           StoreData(ee_address, NFCount);
           StoreData(ee_address, NFCount);
-          StoreData(ee_address, NFCount);
+          
           write_different();
           
           //Serial.print("\nNFCount:");//Serial.println(NFCount);
